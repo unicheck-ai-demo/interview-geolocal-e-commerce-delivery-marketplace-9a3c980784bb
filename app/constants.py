@@ -1,0 +1,11 @@
+ORDER_STATUS_PENDING = 'pending'
+ORDER_STATUS_CONFIRMED = 'confirmed'
+ORDER_STATUS_FULFILLED = 'fulfilled'
+ORDER_STATUS_CANCELLED = 'cancelled'
+
+ORDER_STATUSES = [
+    (ORDER_STATUS_PENDING, 'Pending'),
+    (ORDER_STATUS_CONFIRMED, 'Confirmed'),
+    (ORDER_STATUS_FULFILLED, 'Fulfilled'),
+    (ORDER_STATUS_CANCELLED, 'Cancelled'),
+]
