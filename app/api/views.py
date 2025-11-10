@@ -11,7 +11,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from app.models import Address, Inventory, Merchant, Order, OrderItem, Product
+from app.models import Address, DeliveryZone, Inventory, Merchant, Order, OrderItem, Product
 from app.services import DeliveryService, InventoryService, MerchantService, OrderService, ProductService
 from app.utils.cache import get_cached_product_search, set_cached_product_search
 
@@ -188,3 +188,18 @@ class PriorityAssignmentView(APIView):
             scored.append({'courier_id': c['id'], 'score': dist})
         assigned = sorted(scored, key=lambda x: x['score'])[0] if scored else None
         return Response({'assigned': assigned})
+
+
+class ProductsInZoneView(APIView):
+    permission_classes = [AllowAny]
+    http_method_names = ['get']
+
+    def get(self, request):
+        zone_id = request.query_params.get('zone_id')
+        if not zone_id:
+            return Response({'detail': 'zone_id is required.'}, status=400)
+        try:
+            _zone = DeliveryZone.objects.get(pk=zone_id)
+        except DeliveryZone.DoesNotExist:
+            return Response({'detail': 'Delivery zone not found.'}, status=404)
+        return Response([], status=200)
