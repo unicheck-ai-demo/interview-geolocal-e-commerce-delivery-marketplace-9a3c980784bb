@@ -3,7 +3,7 @@ import json
 
 from django.core.cache import cache
 
-CACHE_VERSION = 'v1'
+CACHE_VERSION = 'v2'
 
 
 def _versioned_key(base, *args):
