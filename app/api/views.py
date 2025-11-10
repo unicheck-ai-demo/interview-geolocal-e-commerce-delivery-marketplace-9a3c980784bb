@@ -1,10 +1,15 @@
+from django.contrib.gis.db.models.functions import Distance
+from django.contrib.gis.geos import Point
+from django.contrib.gis.measure import D
 from django.db import DatabaseError, connection
 from rest_framework import status, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from app.models import Inventory, Merchant, Order, Product
+from app.utils.cache import get_cached_product_search, set_cached_product_search
 
 from .serializers import InventorySerializer, MerchantSerializer, OrderSerializer, ProductSerializer
 
@@ -33,6 +38,33 @@ class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all().select_related('merchant', 'category')
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
+
+    @action(detail=False, methods=['get'])
+    def nearby(self, request):
+        try:
+            lat = float(request.query_params['lat'])
+            lng = float(request.query_params['lng'])
+            radius = float(request.query_params.get('radius', 5))  # km
+        except Exception:
+            return Response({'detail': 'lat, lng, radius are required.'}, status=400)
+        pname = request.query_params.get('product_name')
+        cached = get_cached_product_search(lat, lng, radius, pname)
+        if cached:
+            return Response(cached)
+        user_point = Point(lng, lat, srid=4326)
+        qs = Product.objects.filter(
+            is_published=True, merchant__address__location__distance_lte=(user_point, D(km=radius))
+        )
+        if pname:
+            qs = qs.filter(name__icontains=pname)
+        qs = (
+            qs.annotate(distance=Distance('merchant__address__location', user_point))
+            .select_related('merchant', 'category')
+            .order_by('distance')[0:30]
+        )
+        res = ProductSerializer(qs, many=True).data
+        set_cached_product_search(lat, lng, radius, pname, res)
+        return Response(res)
 
 
 class InventoryViewSet(viewsets.ModelViewSet):

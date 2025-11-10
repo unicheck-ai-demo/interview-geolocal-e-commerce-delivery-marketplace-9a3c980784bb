@@ -45,3 +45,17 @@ def test_list_products_api(api_client):
     response = api_client.get(url)
     assert response.status_code == status.HTTP_200_OK
     assert response.data['results'][0]['name'] == 'Apple'
+
+
+def test_nearby_products_api(api_client):
+    user = User.objects.create_user(username='cx', password='pw')
+    cat = ProductCategory.objects.create(name='Vegetables')
+    addr = Address.objects.create(
+        line1='Y1', line2='', city='L', state='', postal_code='3000', country='Z', location=Point(10, 10)
+    )
+    merchant = Merchant.objects.create(user=user, name='VegStore', address=addr)
+    prod = Product.objects.create(name='Carrot', description='Crisp', category=cat, merchant=merchant, price=1.5)
+    url = reverse('api:product-nearby')
+    resp = api_client.get(url, {'lat': 10, 'lng': 10, 'radius': 2})
+    assert resp.status_code == 200
+    assert any(p['name'] == 'Carrot' for p in resp.data)
