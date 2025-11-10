@@ -42,16 +42,70 @@ Good luck and enjoy!
 
 ## About Project
 
+A production-like backend service powering a local delivery marketplace where users can search for nearby merchants carrying desired products, place orders, and track deliveries. The system leverages spatial queries for merchant and delivery zone management, Redis caching for performance, and ensures data integrity in high-concurrency environments such as simultaneous order placements and inventory updates.
+
+[see more details](docs/)
+
 ### Tech Stack
 
 - Python: 3.11
 - Django: 4
-- Celery: 5
 - API: Django REST Framework
 - Database: PostgreSQL 15
 - Caching: Redis 7
 - Testing: Pytest, Pytest-Django
+- Architecture: Service Pattern, Resource-Based API
 - Dependency Management: `requirements.txt`
+
+
+### Project Structure Overview
+```bash
+> tree -a --gitignore /app 
+.
+├── .env.example
+├── Dockerfile
+├── Makefile
+├── README.md
+├── app
+│   ├── api
+│   │   ├── serializers.py
+│   │   ├── urls.py
+│   │   └── views.py
+│   ├── apps.py
+│   ├── constants.py
+│   ├── migrations
+│   │   ├── 0001_initial.py
+│   │   └── 0002_alter_address_state.py
+│   ├── models.py
+│   ├── services.py
+│   ├── tasks.py
+│   └── utils
+│       └── cache.py
+├── config
+│   ├── asgi.py
+│   ├── celery.py
+│   ├── settings.py
+│   ├── urls.py
+│   └── wsgi.py
+├── docker-compose.yml
+├── docs
+│   └── README.md
+├── manage.py
+├── pyproject.toml
+├── requirements.txt
+└── tests
+    ├── api
+    │   ├── test_api.py
+    │   └── test_heapth.py
+    ├── conftest.py
+    ├── models
+    │   └── test_models.py
+    └── services
+        └── test_services.py
+
+11 directories, 30 files
+
+```
 
 ---
 Contact: [info@unicheck.ai](mailto:info@unicheck.ai)
