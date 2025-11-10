@@ -4,7 +4,7 @@ from django.contrib.gis.geos import Point
 from django.urls import reverse
 from rest_framework import status
 
-from app.models import Address, Merchant, Product, ProductCategory
+from app.models import Address, Merchant, Order, OrderItem, Product, ProductCategory
 
 pytestmark = pytest.mark.django_db
 
@@ -59,3 +59,41 @@ def test_nearby_products_api(api_client):
     resp = api_client.get(url, {'lat': 10, 'lng': 10, 'radius': 2})
     assert resp.status_code == 200
     assert any(p['name'] == 'Carrot' for p in resp.data)
+
+
+def test_order_analytics(api_client):
+    user = User.objects.create_user(username='mmm', password='pw')
+    cat = ProductCategory.objects.create(name='Bulk')
+    addr = Address.objects.create(
+        line1='11', line2='11', city='K', state='Y', postal_code='10', country='QC', location=Point(7, 7)
+    )
+    merchant = Merchant.objects.create(user=user, name='TopOrderSt', address=addr)
+    prod = Product.objects.create(name='Banana', description='Win', category=cat, merchant=merchant, price=1.5)
+    order = Order.objects.create(user=user, merchant=merchant, address=addr, status='fulfilled', total=12)
+    OrderItem.objects.create(order=order, product=prod, quantity=6, unit_price=1.5, line_total=9)
+    url = reverse('api:order-analytics')
+    resp = api_client.get(url)
+    assert resp.status_code == 200
+    assert any('Banana' in str(r.get('product__name')) for r in resp.data)
+
+
+def test_priority_assignment_api(api_client):
+    user = User.objects.create_user(username='de', password='pw')
+    api_client.force_authenticate(user)
+    cat = ProductCategory.objects.create(name='Drv')
+    addr = Address.objects.create(
+        line1='N1', line2='', city='A', state='', postal_code='B3', country='PL', location=Point(12, 8)
+    )
+    merchant = Merchant.objects.create(user=user, name='DrSt', address=addr)
+    order = Order.objects.create(user=user, merchant=merchant, address=addr, status='pending', total=10)
+    url = reverse('api:priority-assignment')
+    data = {
+        'order_id': order.pk,
+        'courier_locations': [
+            {'id': 1, 'lat': 12, 'lng': 8},
+            {'id': 2, 'lat': 13, 'lng': 8},
+        ],
+    }
+    resp = api_client.post(url, data, format='json')
+    assert resp.status_code == 200
+    assert resp.data.get('assigned', {}).get('courier_id') == 1

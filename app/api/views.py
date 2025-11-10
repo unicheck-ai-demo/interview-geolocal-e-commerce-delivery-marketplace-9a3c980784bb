@@ -4,13 +4,14 @@ from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
 from django.db import DatabaseError, connection
+from django.db.models import F, Sum, Window
+from django.db.models.functions import Rank
 from rest_framework import status, viewsets
-from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.permissions import AllowAny, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from app.models import Inventory, Merchant, Order, Product
+from app.models import Inventory, Merchant, Order, OrderItem, Product
 from app.services import DeliveryService
 from app.utils.cache import get_cached_product_search, set_cached_product_search
 
@@ -42,12 +43,15 @@ class ProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
 
-    @action(detail=False, methods=['get'])
-    def nearby(self, request):
+
+class ProductNearbyView(APIView):
+    http_method_names = ['get']
+
+    def get(self, request):
         try:
             lat = float(request.query_params['lat'])
             lng = float(request.query_params['lng'])
-            radius = float(request.query_params.get('radius', 5))  # km
+            radius = float(request.query_params.get('radius', 5))
         except Exception:
             return Response({'detail': 'lat, lng, radius are required.'}, status=400)
         pname = request.query_params.get('product_name')
@@ -82,9 +86,46 @@ class OrderViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticatedOrReadOnly]
 
 
+class OrderAnalyticsView(APIView):
+    http_method_names = ['get']
+
+    def get(self, request):
+        qs = (
+            OrderItem.objects.values('product__id', 'product__name', 'order__merchant__id', 'order__merchant__name')
+            .annotate(total_sales=Sum('line_total'))
+            .annotate(
+                rank=Window(
+                    expression=Rank(), partition_by=[F('order__merchant__id')], order_by=F('total_sales').desc()
+                )
+            )
+            .filter(rank=1)
+        )
+        return Response(list(qs))
+
+
 class DeliveryETAView(APIView):
     def post(self, request):
         order_ids = request.data.get('order_ids', [])
-        # In real world use async from DRF or spawn task, here event-loop is run inline for demonstration
         result = asyncio.run(DeliveryService.get_eta_for_orders(order_ids))
         return Response(result)
+
+
+class PriorityAssignmentView(APIView):
+    permission_classes = [AllowAny]
+    http_method_names = ['post']
+
+    def post(self, request):
+        order_id = request.data.get('order_id')
+        courier_locations = request.data.get('courier_locations', [])
+        try:
+            order = Order.objects.select_related('merchant__address').get(pk=order_id)
+        except Order.DoesNotExist:
+            return Response({'detail': 'Order not found'}, status=404)
+        m_loc = order.merchant.address.location
+        scored = []
+        for c in courier_locations:
+            c_point = Point(c['lng'], c['lat'], srid=4326)
+            dist = m_loc.distance(c_point)
+            scored.append({'courier_id': c['id'], 'score': dist})
+        assigned = sorted(scored, key=lambda x: x['score'])[0] if scored else None
+        return Response({'assigned': assigned})

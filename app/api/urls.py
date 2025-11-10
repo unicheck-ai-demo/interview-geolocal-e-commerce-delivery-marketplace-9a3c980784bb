@@ -1,7 +1,17 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from .views import DeliveryETAView, HealthCheckView, InventoryViewSet, MerchantViewSet, OrderViewSet, ProductViewSet
+from .views import (
+    DeliveryETAView,
+    HealthCheckView,
+    InventoryViewSet,
+    MerchantViewSet,
+    OrderAnalyticsView,
+    OrderViewSet,
+    PriorityAssignmentView,
+    ProductNearbyView,
+    ProductViewSet,
+)
 
 router = DefaultRouter()
 router.register(r'merchants', MerchantViewSet, basename='merchant')
@@ -12,7 +22,10 @@ router.register(r'orders', OrderViewSet, basename='order')
 urlpatterns = [
     path('', include(router.urls)),
     path('health/', HealthCheckView.as_view(), name='health-check'),
+    path('custom/products/nearby/', ProductNearbyView.as_view(), name='product-nearby'),
     path('delivery/eta/', DeliveryETAView.as_view(), name='delivery-eta'),
+    path('custom/orders/priority-assignment/', PriorityAssignmentView.as_view(), name='priority-assignment'),
+    path('custom/orders/analytics/', OrderAnalyticsView.as_view(), name='order-analytics'),
 ]
 
 app_name = 'api'
