@@ -97,3 +97,27 @@ def test_priority_assignment_api(api_client):
     resp = api_client.post(url, data, format='json')
     assert resp.status_code == 200
     assert resp.data.get('assigned', {}).get('courier_id') == 1
+
+
+def test_auth_required_for_post_endpoints(api_client):
+    # Unauthenticated POST to /api/merchants/ should return 401
+    category = ProductCategory.objects.create(name='AuthT1')
+    data = {
+        'name': 'Auth Protected Merchant',
+        'address': {
+            'line1': 'A',
+            'line2': '',
+            'city': 'X',
+            'state': 'Q',
+            'postal_code': '10000',
+            'country': 'Y',
+            'location': {'type': 'Point', 'coordinates': [1.0, 2.0]},
+        },
+        'categories': [category.id],
+    }
+    resp = api_client.post(reverse('api:merchant-list'), data, format='json')
+    assert resp.status_code == 401
+
+    # Unauthenticated POST to /api/orders/ should return 401
+    resp2 = api_client.post(reverse('api:order-list'), data={}, format='json')
+    assert resp2.status_code == 401

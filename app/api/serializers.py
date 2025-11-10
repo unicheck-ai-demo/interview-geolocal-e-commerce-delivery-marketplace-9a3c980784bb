@@ -1,7 +1,10 @@
+from django.contrib.auth import get_user_model
 from django.contrib.gis.geos import Point
 from rest_framework import serializers
 
 from app.models import Address, Inventory, Merchant, Order, OrderItem, Product, ProductCategory
+
+User = get_user_model()
 
 
 class PointField(serializers.Field):
@@ -82,7 +85,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 class OrderSerializer(serializers.ModelSerializer):
     merchant = serializers.PrimaryKeyRelatedField(queryset=Merchant.objects.all())
-    user = serializers.PrimaryKeyRelatedField(queryset=Merchant.objects.all())
+    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
     address = serializers.PrimaryKeyRelatedField(queryset=Address.objects.all())
     items = OrderItemSerializer(many=True, required=False)
 
