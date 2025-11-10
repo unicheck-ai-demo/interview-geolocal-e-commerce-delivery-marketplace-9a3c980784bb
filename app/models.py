@@ -26,7 +26,7 @@ class Address(models.Model):
     line1 = models.CharField(max_length=255)
     line2 = models.CharField(max_length=255, blank=True, default='')
     city = models.CharField(max_length=80)
-    state = models.CharField(max_length=80)
+    state = models.CharField(max_length=80, blank=True, default='')
     postal_code = models.CharField(max_length=20)
     country = models.CharField(max_length=80)
     location = gis_models.PointField(srid=4326)

@@ -1,9 +1,13 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from .views import HealthCheckView
+from .views import HealthCheckView, InventoryViewSet, MerchantViewSet, OrderViewSet, ProductViewSet
 
 router = DefaultRouter()
+router.register(r'merchants', MerchantViewSet, basename='merchant')
+router.register(r'products', ProductViewSet, basename='product')
+router.register(r'inventories', InventoryViewSet, basename='inventory')
+router.register(r'orders', OrderViewSet, basename='order')
 
 urlpatterns = [
     path('', include(router.urls)),
