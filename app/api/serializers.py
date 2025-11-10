@@ -55,8 +55,8 @@ class MerchantSerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    merchant = serializers.PrimaryKeyRelatedField(read_only=True)
-    category = ProductCategorySerializer(read_only=True)
+    merchant = serializers.PrimaryKeyRelatedField(queryset=Merchant.objects.all())
+    category = serializers.PrimaryKeyRelatedField(queryset=ProductCategory.objects.all())
 
     class Meta:
         model = Product
@@ -64,8 +64,8 @@ class ProductSerializer(serializers.ModelSerializer):
 
 
 class InventorySerializer(serializers.ModelSerializer):
-    merchant = serializers.PrimaryKeyRelatedField(read_only=True)
-    product = ProductSerializer(read_only=True)
+    merchant = serializers.PrimaryKeyRelatedField(queryset=Merchant.objects.all())
+    product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all())
 
     class Meta:
         model = Inventory
@@ -73,7 +73,7 @@ class InventorySerializer(serializers.ModelSerializer):
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
-    product = ProductSerializer(read_only=True)
+    product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all())
 
     class Meta:
         model = OrderItem
@@ -81,10 +81,10 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 
 class OrderSerializer(serializers.ModelSerializer):
-    merchant = serializers.PrimaryKeyRelatedField(read_only=True)
-    user = serializers.PrimaryKeyRelatedField(read_only=True)
-    address = AddressSerializer(read_only=True)
-    items = OrderItemSerializer(many=True, read_only=True)
+    merchant = serializers.PrimaryKeyRelatedField(queryset=Merchant.objects.all())
+    user = serializers.PrimaryKeyRelatedField(queryset=Merchant.objects.all())
+    address = serializers.PrimaryKeyRelatedField(queryset=Address.objects.all())
+    items = OrderItemSerializer(many=True, required=False)
 
     class Meta:
         model = Order

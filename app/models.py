@@ -2,6 +2,8 @@ from django.contrib.auth import get_user_model
 from django.contrib.gis.db import models as gis_models
 from django.db import models
 
+from app.constants import ORDER_STATUS_PENDING, ORDER_STATUSES
+
 User = get_user_model()
 
 
@@ -86,16 +88,10 @@ class Inventory(models.Model):
 
 
 class Order(models.Model):
-    STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('confirmed', 'Confirmed'),
-        ('fulfilled', 'Fulfilled'),
-        ('cancelled', 'Cancelled'),
-    ]
+    status = models.CharField(max_length=16, choices=ORDER_STATUSES, default=ORDER_STATUS_PENDING)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders')
     merchant = models.ForeignKey(Merchant, on_delete=models.CASCADE, related_name='orders')
     address = models.ForeignKey(Address, on_delete=models.PROTECT, related_name='order_addresses')
-    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default='pending')
     total = models.DecimalField(max_digits=12, decimal_places=2)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

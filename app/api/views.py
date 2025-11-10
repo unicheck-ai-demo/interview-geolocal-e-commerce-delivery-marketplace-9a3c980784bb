@@ -11,8 +11,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from app.models import Inventory, Merchant, Order, OrderItem, Product
-from app.services import DeliveryService
+from app.models import Address, Inventory, Merchant, Order, OrderItem, Product
+from app.services import DeliveryService, InventoryService, MerchantService, OrderService, ProductService
 from app.utils.cache import get_cached_product_search, set_cached_product_search
 
 from .serializers import InventorySerializer, MerchantSerializer, OrderSerializer, ProductSerializer
@@ -35,13 +35,84 @@ class MerchantViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticatedOrReadOnly]
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        validated = serializer.validated_data.copy()
+        user = self.request.user
+        address_data = validated.pop('address')
+        address = Address.objects.create(**address_data)
+        categories = validated.pop('categories', [])
+        merchant = MerchantService.create_merchant(user, validated['name'], address=address, categories=categories)
+        serializer.instance = merchant
+
+    def perform_update(self, serializer):
+        serializer.save()
 
 
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all().select_related('merchant', 'category')
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def perform_create(self, serializer):
+        validated = serializer.validated_data
+        merchant = validated['merchant']
+        category = validated['category']
+        product = ProductService.create_product(
+            merchant=merchant,
+            name=validated['name'],
+            category=category,
+            price=validated['price'],
+            description=validated.get('description', ''),
+        )
+        serializer.instance = product
+
+    def perform_update(self, serializer):
+        serializer.save()
+
+
+class InventoryViewSet(viewsets.ModelViewSet):
+    queryset = Inventory.objects.select_related('merchant', 'product').all()
+    serializer_class = InventorySerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def perform_create(self, serializer):
+        validated = serializer.validated_data
+        merchant = validated['merchant']
+        product = validated['product']
+        stock = validated['stock']
+        inv = InventoryService.set_stock(merchant, product, stock)
+        serializer.instance = inv
+
+    def perform_update(self, serializer):
+        validated = serializer.validated_data
+        merchant = validated['merchant']
+        product = validated['product']
+        stock = validated['stock']
+        inv = InventoryService.set_stock(merchant, product, stock)
+        serializer.instance = inv
+
+
+class OrderViewSet(viewsets.ModelViewSet):
+    queryset = Order.objects.select_related('user', 'merchant', 'address').prefetch_related('items__product').all()
+    serializer_class = OrderSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def perform_create(self, serializer):
+        validated = serializer.validated_data
+        user = validated['user']
+        merchant = validated['merchant']
+        address = validated['address']
+        items_data = self.request.data.get('items', [])
+        items = []
+        for item in items_data:
+            prod_id = item.get('product')
+            qty = item.get('quantity')
+            prod = Product.objects.get(pk=prod_id)
+            items.append((prod, int(qty)))
+        order = OrderService.place_order(user, merchant, address, items)
+        serializer.instance = order
+
+    def perform_update(self, serializer):
+        serializer.save()
 
 
 class ProductNearbyView(APIView):
@@ -72,18 +143,6 @@ class ProductNearbyView(APIView):
         res = ProductSerializer(qs, many=True).data
         set_cached_product_search(lat, lng, radius, pname, res)
         return Response(res)
-
-
-class InventoryViewSet(viewsets.ModelViewSet):
-    queryset = Inventory.objects.select_related('merchant', 'product').all()
-    serializer_class = InventorySerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
-
-
-class OrderViewSet(viewsets.ModelViewSet):
-    queryset = Order.objects.select_related('user', 'merchant', 'address').prefetch_related('items__product').all()
-    serializer_class = OrderSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
 
 
 class OrderAnalyticsView(APIView):
