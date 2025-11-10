@@ -1,3 +1,5 @@
+import asyncio
+
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
@@ -9,6 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from app.models import Inventory, Merchant, Order, Product
+from app.services import DeliveryService
 from app.utils.cache import get_cached_product_search, set_cached_product_search
 
 from .serializers import InventorySerializer, MerchantSerializer, OrderSerializer, ProductSerializer
@@ -77,3 +80,11 @@ class OrderViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.select_related('user', 'merchant', 'address').prefetch_related('items__product').all()
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
+
+
+class DeliveryETAView(APIView):
+    def post(self, request):
+        order_ids = request.data.get('order_ids', [])
+        # In real world use async from DRF or spawn task, here event-loop is run inline for demonstration
+        result = asyncio.run(DeliveryService.get_eta_for_orders(order_ids))
+        return Response(result)

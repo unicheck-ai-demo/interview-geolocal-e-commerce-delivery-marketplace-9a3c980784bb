@@ -1,3 +1,4 @@
+import asyncio
 from threading import Thread
 
 import pytest
@@ -5,7 +6,7 @@ from django.contrib.auth.models import User
 from django.contrib.gis.geos import Point
 
 from app.models import Address, Merchant, Product, ProductCategory
-from app.services import InventoryService, MerchantService, OrderService, ProductService
+from app.services import DeliveryService, InventoryService, MerchantService, OrderService, ProductService
 
 pytestmark = pytest.mark.django_db
 
@@ -73,3 +74,14 @@ def test_concurrent_inventory_decrement(transactional_db):
     t2.join()
     assert results.count('success') == 1
     assert any('stock' in r or 'Insufficient' in r for r in results)
+
+
+def test_delivery_eta_async():
+    async def coro():
+        # Simulate concurrent ETAs for order ids
+        resp = await DeliveryService.get_eta_for_orders([22, 23])
+        assert isinstance(resp, list)
+        assert resp[0]['order'] == 22 and resp[1]['order'] == 23
+        assert all(r['eta_minutes'] == 15 for r in resp)
+
+    asyncio.run(coro())

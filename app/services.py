@@ -1,3 +1,5 @@
+import asyncio
+
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import F
@@ -92,3 +94,17 @@ class OrderService:
             raise
         transaction.savepoint_commit(sid)
         return order
+
+
+class DeliveryService:
+    @staticmethod
+    async def get_eta_for_order(order_id):
+        # In production, use aiohttp to fetch live ETA from external API
+        # Here, we simply async sleep and return a mock ETA, e.g., 15 min
+        await asyncio.sleep(0.1)
+        return {'order': order_id, 'eta_minutes': 15}
+
+    @staticmethod
+    async def get_eta_for_orders(order_ids):
+        tasks = [DeliveryService.get_eta_for_order(oid) for oid in order_ids]
+        return await asyncio.gather(*tasks)
